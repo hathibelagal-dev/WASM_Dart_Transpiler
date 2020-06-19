@@ -19,7 +19,7 @@ class Opcodes {
     static final int i64_LOAD16_s = 0x32;
     static final int i64_LOAD16_u = 0x33;
     static final int i64_LOAD32_s = 0x34;
-    static final int i64_LOAD32_U = 0x35;
+    static final int i64_LOAD32_u = 0x35;
     static final int i64_STORE = 0x37;
     static final int i64_STORE8 = 0x3c;
     static final int i64_STORE16 = 0x3d;
