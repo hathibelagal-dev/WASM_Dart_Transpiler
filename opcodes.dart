@@ -156,4 +156,10 @@ class Opcodes {
     static final int ctrl_RETURN = 0xf;
     static final int ctrl_CALL = 0x10;
     static final int ctrl_CALL_INDIRECT = 0x11;
+    
+    static final int parametric_DROP = 0x1A;
+    static final int parametric_SELECT = 0x1B;
+    
+    static final int memory_SIZE = 0x3F;
+    static final int memory_GROW = 0x40;
 }

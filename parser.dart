@@ -85,6 +85,12 @@ class Parser {
         );
     }
     
+    void readMemArg() {
+        int align = reader.readU32();
+        int offset = reader.readU32();
+        _show("Read memory ($align, $offset)");
+    }
+    
     void readTypeSection(int size) {
         int originalOffset = reader.offset;
         int nFunctions = reader.readU32();
@@ -204,7 +210,8 @@ class Parser {
     }
     
     void processOpCode(int opcode) {
-        _show("Processing opcode: 0x${Utils.get0x(opcode)}");
+        _show("Processing opcode: 0x" + Utils.get0x(opcode));
+        
         if(opcode == Opcodes.i32_CONST) {
             int n = reader.readS32();
             _show("32-bit constant value is $n");
@@ -217,15 +224,100 @@ class Parser {
             int i = reader.readU32();
             _show("Fetch local value $i");
         }
-        else if(opcode == Opcodes.i64_LT_u) {
-            _show("lt_u");
+        else if(opcode == Opcodes.i32_SUB) {
+            _show("Subtract32");
         }
+        else if(opcode == Opcodes.i32_ADD) {
+            _show("Add32");
+        }
+        else if(opcode == Opcodes.i32_MUL) {
+            _show("Mul32");
+        }        
+        else if(opcode == Opcodes.i32_DIV_u) {
+            _show("Div32");
+        }        
+        else if(opcode == Opcodes.i32_OR) {
+            _show("Or32");
+        }        
+        else if(opcode == Opcodes.i32_XOR) {
+            _show("Xor32");
+        }        
+        else if(opcode == Opcodes.i32_SHL) {
+            _show("Shift32 left");
+        }        
+        else if(opcode == Opcodes.i32_SHR_s) {
+            _show("Shift32 right signed");
+        }        
+        else if(opcode == Opcodes.i32_SHR_u) {
+            _show("Shift32 right unsigned");
+        }        
+        else if(opcode == Opcodes.i32_AND) {
+            _show("And32");
+        }        
         else if(opcode == Opcodes.i32_LT_u) {
             _show("lt_u");
+        }
+        else if(opcode == Opcodes.i32_LT_s) {
+            _show("lt_s");
+        }        
+        else if(opcode == Opcodes.i32_LE_u) {
+            _show("le_u");
+        }
+        else if(opcode == Opcodes.i32_LE_s) {
+            _show("le_s");
+        }        
+        else if(opcode == Opcodes.i32_GT_u) {
+            _show("gt_u");
+        }
+        else if(opcode == Opcodes.i32_GT_s) {
+            _show("gt_s");
+        }        
+        else if(opcode == Opcodes.i32_GE_u) {
+            _show("ge_u");
+        }        
+        else if(opcode == Opcodes.i32_GE_s) {
+            _show("ge_s");
         }
         else if(opcode == Opcodes.i32_EQZ) {
             _show("eqz");
         }
+        else if(opcode == Opcodes.i32_NE) {
+            _show("ne");
+        }
+        else if(opcode == Opcodes.i32_EQ) {
+            _show("eq");
+        }
+        else if(opcode == Opcodes.i32_WRAP_i64) {
+            _show("Wrap 32 to 64");
+        }                
+        else if(opcode == Opcodes.i64_SUB) {
+            _show("Subtract64");
+        }
+        else if(opcode == Opcodes.i64_ADD) {
+            _show("Add64");
+        }        
+        else if(opcode == Opcodes.i64_SHL) {
+            _show("Shift64 left");
+        }        
+        else if(opcode == Opcodes.i64_SHR_s) {
+            _show("Shift64 right signed");
+        }        
+        else if(opcode == Opcodes.i64_SHR_u) {
+            _show("Shift64 right unsigned");
+        }
+        else if(opcode == Opcodes.i64_LT_u) {
+            _show("lt_u");
+        }
+        else if(opcode == Opcodes.i64_LE_u) {
+            _show("le_u");
+        }
+        else if(opcode == Opcodes.i64_GE_u) {
+            _show("ge_u");
+        }
+        else if(opcode == Opcodes.ctrl_BLOCK) {
+            _show("Block starts");
+            handleBlock();
+        }        
         else if(opcode == Opcodes.ctrl_IF) {
             _show("If condition starts");
             handleBlock();
@@ -233,25 +325,89 @@ class Parser {
         else if(opcode == Opcodes.ctrl_ELSE) {
             _show("Else starts");
         }
+        else if(opcode == Opcodes.ctrl_LOOP) {
+            _show("Block starts");
+            handleBlock();
+        }        
         else if(opcode == Opcodes.ctrl_RETURN) {
             _show("Return");            
-        }
-        else if(opcode == Opcodes.i32_SUB) {
-            _show("Subtract32");
-        }
-        else if(opcode == Opcodes.i32_ADD) {
-            _show("Add32");
-        }
-        else if(opcode == Opcodes.i64_SUB) {
-            _show("Subtract64");
-        }
-        else if(opcode == Opcodes.i64_ADD) {
-            _show("Add64");
         }
         else if(opcode == Opcodes.ctrl_CALL) {
             int fn = reader.readU32();
             _show("Call function $fn");
         }
+        else if(opcode == Opcodes.ctrl_CALL_INDIRECT) {
+            int typeIndex = reader.readU32();
+            int b00 = reader.readByte();
+            if(b00 == 0x00) {
+                _show("Call indirect!");
+            }
+        }
+        else if(opcode == Opcodes.parametric_DROP) {
+            _show("Throw away operand");
+        }
+        else if(opcode == Opcodes.parametric_SELECT) {
+            _show("Pick one from three");
+        }
+        else if(opcode == Opcodes.ctrl_BR_IF) {
+            int labelIndex = reader.readU32();
+            _show("Conditional branch to label idx: $labelIndex");            
+        }
+        else if(opcode == Opcodes.ctrl_BR) {
+            int labelIndex = reader.readU32();
+            _show("Branch to label idx: $labelIndex");            
+        }
+        else if(opcode == Opcodes.local_SET) {
+            int localIndex = reader.readU32();
+            _show("Local set $localIndex");
+        }
+        else if(opcode == Opcodes.local_GET) {
+            int localIndex = reader.readU32();
+            _show("Local get $localIndex");
+        }
+        else if(opcode == Opcodes.local_TEE) {
+            int localIndex = reader.readU32();
+            _show("Local tee $localIndex");
+        }
+        else if(opcode == Opcodes.global_GET) {
+            int globalIndex = reader.readU32();
+            _show("Global get $globalIndex");
+        }
+        else if(opcode == Opcodes.global_SET) {
+            int globalIndex = reader.readU32();
+            _show("Global set $globalIndex");
+        }       
+        else if(opcode == Opcodes.i32_LOAD) {
+            readMemArg();
+            _show("Load 32-bit value");
+        }
+        else if(opcode == Opcodes.i32_LOAD8_s) {
+            readMemArg();
+            _show("Load 8-bit signed value");
+        }
+        else if(opcode == Opcodes.i32_LOAD8_u) {
+            readMemArg();
+            _show("Load 8-bit unsigned value");
+        }        
+        else if(opcode == Opcodes.i64_LOAD) {
+            readMemArg();
+            _show("Load 64-bit value");
+        }
+        else if(opcode == Opcodes.i32_STORE) {
+            readMemArg();
+            _show("Store 32-bit value");
+        }
+        else if(opcode == Opcodes.i32_STORE8) {
+            readMemArg();
+            _show("Store 8-bit value");
+        }       
+        else if(opcode == Opcodes.i64_STORE) {
+            readMemArg();
+            _show("Store 64-bit value");
+        }
+        else {
+            _show("Not found!!");
+        }        
     }
     
     void readExpr() {
@@ -331,12 +487,28 @@ class Parser {
             for(int j=0;j<nLocals;j++) {
                 int nOfType = reader.readU32();
                 int valType = reader.readByte();
-                _show("$nOfType locals of type $valType");
+                _show("$nOfType locals of type " + Utils.getValueTypeName(valType));
             }
             readExpr();
         }
         if(!reader.isOffsetCorrect(originalOffset, size)) {
             _show("Something's wrong in the code section");
+        }
+    }
+    
+    void readDataSection(int size) {
+        int originalOffset = reader.offset;
+        int nData = reader.readU32();
+        for(int i=0;i<nData;i++) {
+            int memIndex = reader.readU32();
+            readExpr();
+            int nBytes = reader.readU32();
+            for(int j=0;j<nBytes;j++) {
+                int b = reader.readByte();
+            }
+        }
+        if(!reader.isOffsetCorrect(originalOffset, size)) {
+            _show("Something's wrong in the data section");
         }
     }
     
@@ -347,39 +519,33 @@ class Parser {
     void readSection() {
         int sectionType = reader.readByte();
         int sectionSize = reader.readU32();
-        _show("Section type: $sectionType");
-        if(sectionType == 0) {
-            readCustomSection(sectionSize);
-        }
-        if(sectionType == 1) {
-            readTypeSection(sectionSize);
-        }
-        if(sectionType == 2) {
-            readImportSection(sectionSize);
-        }
-        if(sectionType == 3) {
-            readFunctionSection(sectionSize);
-        }        
-        if(sectionType == 4) {
-            readTableSection(sectionSize);
-        }
-        if(sectionType == 5) {
-            readMemorySection(sectionSize);
-        }
-        if(sectionType == 6) {
-            readGlobalsSection(sectionSize);
-        }
-        if(sectionType == 7) {
-            readExportSection(sectionSize);
-        }
-        if(sectionType == 8) {
-            readStartSection(sectionSize);
-        }
-        if(sectionType == 9) {
-            readElementSection(sectionSize);
-        }
-        if(sectionType == 10) {
-            readCodeSection(sectionSize);
+        
+        switch(sectionType) {
+            case 0: readCustomSection(sectionSize);
+                    break;
+            case 1: readTypeSection(sectionSize);
+                    break;
+            case 2: readImportSection(sectionSize);
+                    break;
+            case 3: readFunctionSection(sectionSize);
+                    break;
+            case 4: readTableSection(sectionSize);
+                    break;
+            case 5: readMemorySection(sectionSize);
+                    break;
+            case 6: readGlobalsSection(sectionSize);
+                    break;
+            case 7: readExportSection(sectionSize);
+                    break;
+            case 8: readStartSection(sectionSize);
+                    break;
+            case 9: readElementSection(sectionSize);
+                    break;
+            case 10: readCodeSection(sectionSize);
+                     break;
+            case 11: readDataSection(sectionSize);
+                     break;
+            default: _show("Invalid section: $sectionType");
         }
     }
     
