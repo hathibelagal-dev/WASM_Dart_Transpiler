@@ -220,10 +220,6 @@ class Parser {
             int n = reader.readS64();
             _show("64-bit constant value is $n");
         }
-        else if(opcode == Opcodes.local_GET) {
-            int i = reader.readU32();
-            _show("Fetch local value $i");
-        }
         else if(opcode == Opcodes.i32_SUB) {
             _show("Subtract32");
         }
@@ -407,6 +403,7 @@ class Parser {
         }
         else {
             _show("Not found!!");
+            exit(1);
         }        
     }
     
