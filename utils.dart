@@ -25,37 +25,21 @@ class Utils {
                 return "f64";
         }
     }
+    
+    static String toDartType(i) {
+        switch(i) {
+            case 0x7F:
+                return "int";
+            case 0x7E:
+                return "int";
+            case 0x7D:
+                return "double";
+            case 0x7C:
+                return "double";
+        }
+    }
 
     static String get0x(int v) {
         return v.toRadixString(16);
     }        
-}
-
-class FunctionType {
-    List<int> parameters;
-    List<int> results;    
-    int nParameters;
-    int nResults;
-    
-    FunctionType({this.parameters, this.nParameters, this.results, this.nResults});
-}
-
-class TypesHolder {
-    int nTypes = 0;
-    Map<int, FunctionType> contents = {};
-    
-    void add(FunctionType ft) {
-        contents[nTypes] = ft;
-        nTypes++;
-    }
-}
-
-class FunctionsHolder {
-    int nFunctions = 0;
-    Map<int, int> contents = {};
-    
-    void add(int index) {
-        contents[nFunctions] = index;
-        nFunctions++;
-    }
 }

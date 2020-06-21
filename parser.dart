@@ -19,14 +19,14 @@ import 'dart:typed_data';
 
 import './wasm_reader.dart';
 import './opcodes.dart';
+import './code_generator.dart';
 import './utils.dart';
 
 class Parser {
     String filename;
     WASMReader reader;
     
-    TypesHolder typesHolder = TypesHolder();
-    FunctionsHolder functionsHolder = FunctionsHolder();
+    CodeGenerator cg = CodeGenerator();
     
     Parser(this.filename);
     
@@ -75,7 +75,7 @@ class Parser {
             _show("Function return type: " + Utils.getValueTypeName(result));
         }
         
-        typesHolder.add(
+        cg.typesHolder.add(
             FunctionType(
                 nParameters: nParameters,
                 nResults: nResults,
@@ -146,13 +146,14 @@ class Parser {
             int descb1 = reader.readByte();
             if(descb1 == 0x00) {
                 _show("Function");
-                int n = reader.readU32();
+                int typeIndex = reader.readU32();
+                cg.functionsHolder.add(typeIndex);
             } else if(descb1 == 0x01) {
                 _show("Table");
                 readTableType();
             }
         }
-        
+        cg.nImports = nImports;
         if(!reader.isOffsetCorrect(originalOffset, size)) {
             _show("Something's wrong in the import section");
         }
@@ -162,13 +163,13 @@ class Parser {
         int originalOffset = reader.offset;
         int nTypeIndices = reader.readU32();
         for(int i=0;i<nTypeIndices;i++) {
-            int index = reader.readU32();            
-            functionsHolder.add(index);            
-            _show("Type index: " + Utils.get0x(index));
+            int typeIndex = reader.readU32();
+            cg.functionsHolder.add(typeIndex);
+            _show("Type index: " + Utils.get0x(typeIndex));
         }
         if(!reader.isOffsetCorrect(originalOffset, size)) {
             _show("Something's wrong in the function section");
-        }       
+        }
     }
     
     String readName() {
@@ -187,6 +188,10 @@ class Parser {
             String name = readName();
             int desc = reader.readByte();
             int index = reader.readU32();
+            if(desc == 0x00) {
+                _show("$name is $index");
+                cg.addFunctionName(index, name);
+            }
         }
         if(!reader.isOffsetCorrect(originalOffset, size)) {
             _show("Something's wrong in the export section");
@@ -561,6 +566,7 @@ class Parser {
                 break;
             }
         }
+        cg.generateFunctions();
     }
     
     void _show(s) {
