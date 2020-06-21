@@ -6,6 +6,7 @@ class CodeGenerator {
     TypesHolder typesHolder = TypesHolder();
     FunctionsHolder functionsHolder = FunctionsHolder();
     Map<int, String> functionNames = {};
+    Map<int, String> functionContents = {};
     int nImports = 0;
     
     void addFunctionName(int index, String name) {
@@ -15,11 +16,12 @@ class CodeGenerator {
     void generateFunctions() {
         for(var i=0;i<functionsHolder.nFunctions;i++) {
             int typeIndex = functionsHolder.contents[i];
-            var resultType = typesHolder.contents[typeIndex];
+            var fType = typesHolder.contents[typeIndex];
             String fnName = functionNames[i];
-            String header = getFunctionHeader(resultType, name: fnName);
+            String header = getFunctionHeader(fType, name: fnName);
             if(i >= nImports) {
                 print(header);
+                print("{ ${functionContents[i]} }");
             }
         }
     }
@@ -31,11 +33,11 @@ class CodeGenerator {
         } else {
             output = "void ";
         }
-        output += (name == null ? "f_$fnC(" : "$name(");
+        output += name == null ? "f$fnC(" : "$name(";
         fnC++;
         int pC = 0;
         for(var i=0;i<ft.nParameters;i++) {
-            output += Utils.toDartType(ft.parameters[i]) + " p_$pC, ";
+            output += Utils.toDartType(ft.parameters[i]) + " l$pC, ";
             pC++;
         }
         if(pC > 0) {
@@ -44,13 +46,25 @@ class CodeGenerator {
         output += ")";
         return output;
     }
+    
+    void addLocalsOfType(int fnIndex, int n, int lType) {
+        fnIndex += nImports;
+        var output = functionContents[fnIndex] ?? "";        
+        var fType = typesHolder.contents[functionsHolder.contents[fnIndex]];
+        int pC = fType.nParameters;
+        for(int i=0;i<n;i++) {
+            output += Utils.toDartType(lType) + " l$pC;\n";
+            pC++;
+        }
+        functionContents[fnIndex] = output;
+    }
 }
 
 class FunctionType {
     List<int> parameters;
     List<int> results;    
-    int nParameters;
-    int nResults;
+    int nParameters = 0;
+    int nResults = 0;
     
     FunctionType({this.parameters, this.nParameters, this.results, this.nResults});
 }

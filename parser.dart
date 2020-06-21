@@ -489,7 +489,8 @@ class Parser {
             for(int j=0;j<nLocals;j++) {
                 int nOfType = reader.readU32();
                 int valType = reader.readByte();
-                _show("$nOfType locals of type " + Utils.getValueTypeName(valType));
+                cg.addLocalsOfType(i, nOfType, valType);
+                _show("Function $i: $nOfType locals of type " + Utils.getValueTypeName(valType));
             }
             readExpr();
         }
