@@ -26,6 +26,9 @@ class Parser {
     String filename;
     WASMReader reader;
     
+    int currentSection = -1;
+    int currentFn = -1;
+    
     CodeGenerator cg = CodeGenerator();
     
     Parser(this.filename);
@@ -219,76 +222,100 @@ class Parser {
         
         if(opcode == Opcodes.i32_CONST) {
             int n = reader.readS32();
+            addCode(opcode, [n]);
             _show("32-bit constant value is $n");
         }
         else if(opcode == Opcodes.i64_CONST) {
             int n = reader.readS64();
+            addCode(opcode, [n]);
             _show("64-bit constant value is $n");
         }
         else if(opcode == Opcodes.i32_SUB) {
+            addCode(opcode, []);
             _show("Subtract32");
         }
         else if(opcode == Opcodes.i32_ADD) {
+            addCode(opcode, []);        
             _show("Add32");
         }
         else if(opcode == Opcodes.i32_MUL) {
+            addCode(opcode, []);        
             _show("Mul32");
         }        
         else if(opcode == Opcodes.i32_DIV_u) {
+            addCode(opcode, []);        
             _show("Div32");
         }        
         else if(opcode == Opcodes.i32_OR) {
+            addCode(opcode, []);        
             _show("Or32");
         }        
         else if(opcode == Opcodes.i32_XOR) {
+            addCode(opcode, []);        
             _show("Xor32");
         }        
         else if(opcode == Opcodes.i32_SHL) {
+            addCode(opcode, []);        
             _show("Shift32 left");
         }        
         else if(opcode == Opcodes.i32_SHR_s) {
+            addCode(opcode, []);        
             _show("Shift32 right signed");
         }        
         else if(opcode == Opcodes.i32_SHR_u) {
+            addCode(opcode, []);        
             _show("Shift32 right unsigned");
         }        
         else if(opcode == Opcodes.i32_AND) {
+            addCode(opcode, []);        
             _show("And32");
         }        
         else if(opcode == Opcodes.i32_LT_u) {
+            addCode(opcode, []);        
             _show("lt_u");
         }
         else if(opcode == Opcodes.i32_LT_s) {
+            addCode(opcode, []);        
             _show("lt_s");
         }        
         else if(opcode == Opcodes.i32_LE_u) {
+            addCode(opcode, []);        
             _show("le_u");
         }
         else if(opcode == Opcodes.i32_LE_s) {
+            addCode(opcode, []);        
             _show("le_s");
         }        
         else if(opcode == Opcodes.i32_GT_u) {
+            addCode(opcode, []);        
             _show("gt_u");
         }
         else if(opcode == Opcodes.i32_GT_s) {
+            addCode(opcode, []);        
             _show("gt_s");
         }        
         else if(opcode == Opcodes.i32_GE_u) {
+            addCode(opcode, []);        
             _show("ge_u");
         }        
         else if(opcode == Opcodes.i32_GE_s) {
+            addCode(opcode, []);        
             _show("ge_s");
         }
         else if(opcode == Opcodes.i32_EQZ) {
+            addCode(opcode, []);        
             _show("eqz");
         }
         else if(opcode == Opcodes.i32_NE) {
+            addCode(opcode, []);        
             _show("ne");
         }
         else if(opcode == Opcodes.i32_EQ) {
+            addCode(opcode, []);        
             _show("eq");
         }
         else if(opcode == Opcodes.i32_WRAP_i64) {
+            addCode(opcode, []);        
             _show("Wrap 32 to 64");
         }                
         else if(opcode == Opcodes.i64_SUB) {
@@ -335,6 +362,7 @@ class Parser {
         }
         else if(opcode == Opcodes.ctrl_CALL) {
             int fn = reader.readU32();
+            addCode(opcode, [fn]);            
             _show("Call function $fn");
         }
         else if(opcode == Opcodes.ctrl_CALL_INDIRECT) {
@@ -360,10 +388,12 @@ class Parser {
         }
         else if(opcode == Opcodes.local_SET) {
             int localIndex = reader.readU32();
+            addCode(opcode, [localIndex]);
             _show("Local set $localIndex");
         }
         else if(opcode == Opcodes.local_GET) {
             int localIndex = reader.readU32();
+            addCode(opcode, [localIndex]);
             _show("Local get $localIndex");
         }
         else if(opcode == Opcodes.local_TEE) {
@@ -492,6 +522,7 @@ class Parser {
                 cg.addLocalsOfType(i, nOfType, valType);
                 _show("Function $i: $nOfType locals of type " + Utils.getValueTypeName(valType));
             }
+            currentFn = i;
             readExpr();
         }
         if(!reader.isOffsetCorrect(originalOffset, size)) {
@@ -522,7 +553,7 @@ class Parser {
     void readSection() {
         int sectionType = reader.readByte();
         int sectionSize = reader.readU32();
-        
+        currentSection = sectionType;
         switch(sectionType) {
             case 0: readCustomSection(sectionSize);
                     break;
@@ -549,6 +580,12 @@ class Parser {
             case 11: readDataSection(sectionSize);
                      break;
             default: _show("Invalid section: $sectionType");
+        }
+    }
+    
+    void addCode(int opcode, List parameters) {
+        if(currentSection == 10) {
+            cg.addCode(currentFn, opcode, parameters);
         }
     }
     
