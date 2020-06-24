@@ -23,6 +23,7 @@ class CodeGenerator {
     Map<int, String> functionNames = {};
     Map<int, String> functionContents = {};
     int nImports = 0;
+    int nImportedFunctions = 0;
     
     List<String> stack = [];
     
@@ -36,9 +37,9 @@ class CodeGenerator {
             var fType = typesHolder.contents[typeIndex];
             String fnName = functionNames[i];
             String header = getFunctionHeader(fType, name: fnName);
-            if(i >= nImports) {
+            if(i >= nImportedFunctions) {
                 print(header);
-                print("{ ${functionContents[i]} }");
+                print("{ ${functionContents[i]}");
             }
         }
     }
@@ -65,7 +66,7 @@ class CodeGenerator {
     }
     
     void addLocalsOfType(int fnIndex, int n, int lType) {
-        fnIndex += nImports;
+        fnIndex += nImportedFunctions;
         var output = functionContents[fnIndex] ?? "";        
         var fType = typesHolder.contents[functionsHolder.contents[fnIndex]];
         int pC = fType.nParameters;
@@ -77,10 +78,11 @@ class CodeGenerator {
     }
     
     void addCode(int fnIndex, int opcode, List parameters) {
-        fnIndex += nImports;
+        fnIndex += nImportedFunctions;
+        print(stack);
         switch(opcode) {
-            case Opcodes.i64_CONST:        
             case Opcodes.i32_CONST:
+            case Opcodes.i64_CONST:            
                 stack.add("${parameters[0]}");
                 break;
             case Opcodes.local_GET:
@@ -89,11 +91,72 @@ class CodeGenerator {
             case Opcodes.local_SET:
                 String value = stack.removeLast();
                 addCodeToFunction(fnIndex, "l${parameters[0]} = $value;");
-                break; 
+                break;
+            case Opcodes.local_TEE:
+                String value = stack.removeLast();
+                addCodeToFunction(fnIndex, "l${parameters[0]} = $value;");
+                stack.add("l${parameters[0]}");
+                break;
             case Opcodes.ctrl_CALL:
-                addCodeToFunction(fnIndex, "f${parameters[0]}();");
+                addFunctionCall(parameters[0], fnIndex);                
+                break;
+            case Opcodes.parametric_DROP:
+                stack.removeLast();
+                break;
+            case Opcodes.i32_SUB:
+            case Opcodes.i64_SUB:
+                String c2 = stack.removeLast();
+                String c1 = stack.removeLast();
+                stack.add("($c1 - $c2)");
+                break;
+            case Opcodes.i32_ADD:
+            case Opcodes.i64_ADD:
+                String c2 = stack.removeLast();
+                String c1 = stack.removeLast();
+                stack.add("($c1 + $c2)");
+                break;
+            case Opcodes.i32_LT_u:
+            case Opcodes.i64_LT_u:
+                String c2 = stack.removeLast();
+                String c1 = stack.removeLast();
+                stack.add("($c1 < $c2)");
+                break;
+            case Opcodes.ctrl_IF:
+                String cond = stack.removeLast();
+                addCodeToFunction(fnIndex, "if($cond) {");
+                break;
+            case Opcodes.ctrl_ELSE:
+                addCodeToFunction(fnIndex, "} else {");
+                break;
+            case Opcodes.ctrl_END:
+                addCodeToFunction(fnIndex, "}");
+                break;
+            case Opcodes.ctrl_RETURN:                
+                addReturnFromFunction(fnIndex);
                 break;
         }
+    }
+    
+    void addFunctionCall(fnToCall, fnIndex) {
+        String fnName = functionNames[fnToCall] ?? "f$fnToCall";
+        int nParameters = typesHolder.contents[functionsHolder.contents[fnToCall]].nParameters;
+        String input = "";
+        for(int i=0;i<nParameters;i++) {
+            input += stack.removeLast() + ",";
+        }
+        if(input.endsWith(",")) {
+            input = input.substring(0, input.length-1);
+        }
+        stack.add("$fnName($input)");
+    }
+    
+    void addReturnFromFunction(fnIndex) { 
+        int nResults = typesHolder.contents[functionsHolder.contents[fnIndex]].nResults;
+        String rValue = "";
+        if(nResults == 1) {
+            rValue = stack.removeLast();
+        }
+        addCodeToFunction(fnIndex, "return $rValue;");
     }
     
     void addCodeToFunction(int fnIndex, String code) {

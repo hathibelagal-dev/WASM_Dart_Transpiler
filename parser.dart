@@ -141,7 +141,7 @@ class Parser {
     void readImportSection(int size) {
         int originalOffset = reader.offset;
         int nImports = reader.readU32();
-        
+        int nImportedFunctions = 0;
         for(int i=0;i<nImports;i++) {
             String mod = readName();
             String nm = readName();
@@ -151,12 +151,14 @@ class Parser {
                 _show("Function");
                 int typeIndex = reader.readU32();
                 cg.functionsHolder.add(typeIndex);
+                nImportedFunctions += 1;
             } else if(descb1 == 0x01) {
                 _show("Table");
                 readTableType();
             }
         }
         cg.nImports = nImports;
+        cg.nImportedFunctions = nImportedFunctions;
         if(!reader.isOffsetCorrect(originalOffset, size)) {
             _show("Something's wrong in the import section");
         }
@@ -319,9 +321,11 @@ class Parser {
             _show("Wrap 32 to 64");
         }                
         else if(opcode == Opcodes.i64_SUB) {
+            addCode(opcode, []);
             _show("Subtract64");
         }
         else if(opcode == Opcodes.i64_ADD) {
+            addCode(opcode, []);
             _show("Add64");
         }        
         else if(opcode == Opcodes.i64_SHL) {
@@ -334,6 +338,7 @@ class Parser {
             _show("Shift64 right unsigned");
         }
         else if(opcode == Opcodes.i64_LT_u) {
+            addCode(opcode, []);
             _show("lt_u");
         }
         else if(opcode == Opcodes.i64_LE_u) {
@@ -347,17 +352,23 @@ class Parser {
             handleBlock();
         }        
         else if(opcode == Opcodes.ctrl_IF) {
+            addCode(opcode, []);
             _show("If condition starts");
             handleBlock();
         }
         else if(opcode == Opcodes.ctrl_ELSE) {
             _show("Else starts");
         }
+        else if(opcode == Opcodes.ctrl_END) {
+            addCode(opcode, []);
+            _show("Found end");
+        }
         else if(opcode == Opcodes.ctrl_LOOP) {
             _show("Block starts");
             handleBlock();
         }        
         else if(opcode == Opcodes.ctrl_RETURN) {
+            addCode(opcode, []);
             _show("Return");            
         }
         else if(opcode == Opcodes.ctrl_CALL) {
@@ -398,6 +409,7 @@ class Parser {
         }
         else if(opcode == Opcodes.local_TEE) {
             int localIndex = reader.readU32();
+            addCode(opcode, [localIndex]);
             _show("Local tee $localIndex");
         }
         else if(opcode == Opcodes.global_GET) {
@@ -444,12 +456,12 @@ class Parser {
     
     void readExpr() {
         while(true) {
-            int opcode = reader.readByte();
-            if(opcode == 0x0b) {
+            int opcode = reader.readByte();            
+            processOpCode(opcode);
+            if(opcode == 0x0b) {                
                 _show("Expression ended");
                 break;
-            }
-            processOpCode(opcode);            
+            }   
         }
     }
     
@@ -476,7 +488,7 @@ class Parser {
             readLimit();
         }
         if(!reader.isOffsetCorrect(originalOffset, size)) {
-            _show("Something's wrong in the import section");
+            _show("Something's wrong in the memory section");
         }
     }
     
