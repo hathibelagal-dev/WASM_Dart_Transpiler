@@ -141,7 +141,6 @@ class Parser {
     void readImportSection(int size) {
         int originalOffset = reader.offset;
         int nImports = reader.readU32();
-        int nImportedFunctions = 0;
         for(int i=0;i<nImports;i++) {
             String mod = readName();
             String nm = readName();
@@ -150,15 +149,15 @@ class Parser {
             if(descb1 == 0x00) {
                 _show("Function");
                 int typeIndex = reader.readU32();
+                cg.addFunctionName("$mod.$nm");
                 cg.functionsHolder.add(typeIndex);
-                nImportedFunctions += 1;
+                cg.nImportedFunctions += 1;
             } else if(descb1 == 0x01) {
                 _show("Table");
                 readTableType();
             }
         }
         cg.nImports = nImports;
-        cg.nImportedFunctions = nImportedFunctions;
         if(!reader.isOffsetCorrect(originalOffset, size)) {
             _show("Something's wrong in the import section");
         }
@@ -195,7 +194,7 @@ class Parser {
             int index = reader.readU32();
             if(desc == 0x00) {
                 _show("$name is $index");
-                cg.addFunctionName(index, name);
+                cg.addFunctionName(name, index: index);
             }
         }
         if(!reader.isOffsetCorrect(originalOffset, size)) {

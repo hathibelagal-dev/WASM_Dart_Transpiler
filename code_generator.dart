@@ -27,9 +27,10 @@ class CodeGenerator {
     
     List<String> stack = [];
     
-    void addFunctionName(int index, String name) {
-        functionNames[index] = name;
-    }
+    void addFunctionName(String name, {int index}) {
+        int i = index ?? functionsHolder.nFunctions;
+        functionNames[i] = name;
+    }    
     
     void generateFunctions() {
         for(var i=0;i<functionsHolder.nFunctions;i++) {
