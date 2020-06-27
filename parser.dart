@@ -277,6 +277,9 @@ class Parser {
             case Opcodes.i64_NE:
             case Opcodes.i64_EQ:
             
+            case Opcodes.parametric_DROP:
+            case Opcodes.parametric_SELECT: 
+            
             case Opcodes.ctrl_END:
             case Opcodes.ctrl_ELSE:
             case Opcodes.ctrl_RETURN:
@@ -301,15 +304,7 @@ class Parser {
                 if(b00 == 0x00) {
                     _show("Call indirect!");
                 }
-                break;
-                
-            case Opcodes.parametric_DROP:
-                addCode(opcode, []);
-                break;
-                
-            case Opcodes.parametric_SELECT:
-                addCode(opcode, []);
-                break;
+                break;                
                 
             case Opcodes.ctrl_BR_IF:
             case Opcodes.ctrl_BR:
