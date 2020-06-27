@@ -221,246 +221,138 @@ class Parser {
     void processOpCode(int opcode) {
         _show("Processing opcode: 0x" + Utils.get0x(opcode));
         
-        if(opcode == Opcodes.i32_CONST) {
-            int n = reader.readS32();
-            addCode(opcode, [n]);
-            _show("32-bit constant value is $n");
+        switch(opcode) {
+            case Opcodes.i32_CONST:
+                int n = reader.readS32();
+                addCode(opcode, [n]);
+                break;
+                
+            case Opcodes.i64_CONST:
+                int n = reader.readS64();
+                addCode(opcode, [n]);
+                break;
+                
+            case Opcodes.i32_SUB:
+            case Opcodes.i32_ADD:
+            case Opcodes.i32_MUL:
+            case Opcodes.i32_DIV_u:
+            case Opcodes.i32_AND:            
+            case Opcodes.i32_OR:
+            case Opcodes.i32_XOR:
+            case Opcodes.i32_SHL:
+            case Opcodes.i32_SHR_s:
+            case Opcodes.i32_SHR_u:
+            case Opcodes.i32_LT_u:
+            case Opcodes.i32_LT_s:
+            case Opcodes.i32_LE_u:
+            case Opcodes.i32_LE_s:
+            case Opcodes.i32_GT_u:
+            case Opcodes.i32_GT_s:
+            case Opcodes.i32_GE_u:
+            case Opcodes.i32_GE_s:
+            case Opcodes.i32_EQZ:
+            case Opcodes.i32_NE:
+            case Opcodes.i32_EQ:
+            case Opcodes.i32_WRAP_i64:
+            
+            case Opcodes.i64_SUB:
+            case Opcodes.i64_ADD:
+            case Opcodes.i64_MUL:
+            case Opcodes.i64_DIV_u:
+            case Opcodes.i64_AND:            
+            case Opcodes.i64_OR:
+            case Opcodes.i64_XOR:
+            case Opcodes.i64_SHL:
+            case Opcodes.i64_SHR_s:
+            case Opcodes.i64_SHR_u:
+            case Opcodes.i64_LT_u:
+            case Opcodes.i64_LT_s:
+            case Opcodes.i64_LE_u:
+            case Opcodes.i64_LE_s:
+            case Opcodes.i64_GT_u:
+            case Opcodes.i64_GT_s:
+            case Opcodes.i64_GE_u:
+            case Opcodes.i64_GE_s:
+            case Opcodes.i64_EQZ:
+            case Opcodes.i64_NE:
+            case Opcodes.i64_EQ:
+            
+            case Opcodes.ctrl_END:
+            case Opcodes.ctrl_ELSE:
+            case Opcodes.ctrl_RETURN:
+                addCode(opcode, []);
+                break;
+                
+            case Opcodes.ctrl_BLOCK:
+            case Opcodes.ctrl_LOOP:
+            case Opcodes.ctrl_IF:
+                addCode(opcode, []);
+                handleBlock();
+                break;
+                
+            case Opcodes.ctrl_CALL:
+                int fn = reader.readU32();
+                addCode(opcode, [fn]);
+                break;
+                
+            case Opcodes.ctrl_CALL_INDIRECT:
+                int typeIndex = reader.readU32();
+                int b00 = reader.readByte();
+                if(b00 == 0x00) {
+                    _show("Call indirect!");
+                }
+                break;
+                
+            case Opcodes.parametric_DROP:
+                addCode(opcode, []);
+                break;
+                
+            case Opcodes.parametric_SELECT:
+                addCode(opcode, []);
+                break;
+                
+            case Opcodes.ctrl_BR_IF:
+            case Opcodes.ctrl_BR:
+                int labelIndex = reader.readU32();
+                break;
+                
+            case Opcodes.local_SET:
+            case Opcodes.local_GET:
+            case Opcodes.local_TEE:
+            case Opcodes.global_GET:
+            case Opcodes.global_SET:
+                int index = reader.readU32();
+                addCode(opcode, [index]);
+                break;
+                
+            case Opcodes.i32_LOAD:
+            case Opcodes.i32_LOAD8_s:
+            case Opcodes.i32_LOAD8_u:
+            case Opcodes.i64_LOAD:
+            case Opcodes.i32_STORE:
+            case Opcodes.i32_STORE8:
+            case Opcodes.i64_STORE:            
+                readMemArg();
+                break;
+                
+            default:
+                print("Not found!");
+                exit(1);
         }
-        else if(opcode == Opcodes.i64_CONST) {
-            int n = reader.readS64();
-            addCode(opcode, [n]);
-            _show("64-bit constant value is $n");
-        }
-        else if(opcode == Opcodes.i32_SUB) {
-            addCode(opcode, []);
-            _show("Subtract32");
-        }
-        else if(opcode == Opcodes.i32_ADD) {
-            addCode(opcode, []);        
-            _show("Add32");
-        }
-        else if(opcode == Opcodes.i32_MUL) {
-            addCode(opcode, []);        
-            _show("Mul32");
-        }        
-        else if(opcode == Opcodes.i32_DIV_u) {
-            addCode(opcode, []);        
-            _show("Div32");
-        }        
-        else if(opcode == Opcodes.i32_OR) {
-            addCode(opcode, []);        
-            _show("Or32");
-        }        
-        else if(opcode == Opcodes.i32_XOR) {
-            addCode(opcode, []);        
-            _show("Xor32");
-        }        
-        else if(opcode == Opcodes.i32_SHL) {
-            addCode(opcode, []);        
-            _show("Shift32 left");
-        }        
-        else if(opcode == Opcodes.i32_SHR_s) {
-            addCode(opcode, []);        
-            _show("Shift32 right signed");
-        }        
-        else if(opcode == Opcodes.i32_SHR_u) {
-            addCode(opcode, []);        
-            _show("Shift32 right unsigned");
-        }        
-        else if(opcode == Opcodes.i32_AND) {
-            addCode(opcode, []);        
-            _show("And32");
-        }        
-        else if(opcode == Opcodes.i32_LT_u) {
-            addCode(opcode, []);        
-            _show("lt_u");
-        }
-        else if(opcode == Opcodes.i32_LT_s) {
-            addCode(opcode, []);        
-            _show("lt_s");
-        }        
-        else if(opcode == Opcodes.i32_LE_u) {
-            addCode(opcode, []);        
-            _show("le_u");
-        }
-        else if(opcode == Opcodes.i32_LE_s) {
-            addCode(opcode, []);        
-            _show("le_s");
-        }        
-        else if(opcode == Opcodes.i32_GT_u) {
-            addCode(opcode, []);        
-            _show("gt_u");
-        }
-        else if(opcode == Opcodes.i32_GT_s) {
-            addCode(opcode, []);        
-            _show("gt_s");
-        }        
-        else if(opcode == Opcodes.i32_GE_u) {
-            addCode(opcode, []);        
-            _show("ge_u");
-        }        
-        else if(opcode == Opcodes.i32_GE_s) {
-            addCode(opcode, []);        
-            _show("ge_s");
-        }
-        else if(opcode == Opcodes.i32_EQZ) {
-            addCode(opcode, []);        
-            _show("eqz");
-        }
-        else if(opcode == Opcodes.i32_NE) {
-            addCode(opcode, []);        
-            _show("ne");
-        }
-        else if(opcode == Opcodes.i32_EQ) {
-            addCode(opcode, []);        
-            _show("eq");
-        }
-        else if(opcode == Opcodes.i32_WRAP_i64) {
-            addCode(opcode, []);        
-            _show("Wrap 32 to 64");
-        }                
-        else if(opcode == Opcodes.i64_SUB) {
-            addCode(opcode, []);
-            _show("Subtract64");
-        }
-        else if(opcode == Opcodes.i64_ADD) {
-            addCode(opcode, []);
-            _show("Add64");
-        }        
-        else if(opcode == Opcodes.i64_SHL) {
-            _show("Shift64 left");
-        }        
-        else if(opcode == Opcodes.i64_SHR_s) {
-            _show("Shift64 right signed");
-        }        
-        else if(opcode == Opcodes.i64_SHR_u) {
-            _show("Shift64 right unsigned");
-        }
-        else if(opcode == Opcodes.i64_LT_u) {
-            addCode(opcode, []);
-            _show("lt_u");
-        }
-        else if(opcode == Opcodes.i64_LE_u) {
-            _show("le_u");
-        }
-        else if(opcode == Opcodes.i64_GE_u) {
-            _show("ge_u");
-        }
-        else if(opcode == Opcodes.ctrl_BLOCK) {
-            _show("Block starts");
-            handleBlock();
-        }        
-        else if(opcode == Opcodes.ctrl_IF) {
-            addCode(opcode, []);
-            _show("If condition starts");
-            handleBlock();
-        }
-        else if(opcode == Opcodes.ctrl_ELSE) {
-            _show("Else starts");
-        }
-        else if(opcode == Opcodes.ctrl_END) {
-            addCode(opcode, []);
-            _show("Found end");
-        }
-        else if(opcode == Opcodes.ctrl_LOOP) {
-            _show("Block starts");
-            handleBlock();
-        }        
-        else if(opcode == Opcodes.ctrl_RETURN) {
-            addCode(opcode, []);
-            _show("Return");            
-        }
-        else if(opcode == Opcodes.ctrl_CALL) {
-            int fn = reader.readU32();
-            addCode(opcode, [fn]);            
-            _show("Call function $fn");
-        }
-        else if(opcode == Opcodes.ctrl_CALL_INDIRECT) {
-            int typeIndex = reader.readU32();
-            int b00 = reader.readByte();
-            if(b00 == 0x00) {
-                _show("Call indirect!");
-            }
-        }
-        else if(opcode == Opcodes.parametric_DROP) {
-            _show("Throw away operand");
-        }
-        else if(opcode == Opcodes.parametric_SELECT) {
-            _show("Pick one from three");
-        }
-        else if(opcode == Opcodes.ctrl_BR_IF) {
-            int labelIndex = reader.readU32();
-            _show("Conditional branch to label idx: $labelIndex");            
-        }
-        else if(opcode == Opcodes.ctrl_BR) {
-            int labelIndex = reader.readU32();
-            _show("Branch to label idx: $labelIndex");            
-        }
-        else if(opcode == Opcodes.local_SET) {
-            int localIndex = reader.readU32();
-            addCode(opcode, [localIndex]);
-            _show("Local set $localIndex");
-        }
-        else if(opcode == Opcodes.local_GET) {
-            int localIndex = reader.readU32();
-            addCode(opcode, [localIndex]);
-            _show("Local get $localIndex");
-        }
-        else if(opcode == Opcodes.local_TEE) {
-            int localIndex = reader.readU32();
-            addCode(opcode, [localIndex]);
-            _show("Local tee $localIndex");
-        }
-        else if(opcode == Opcodes.global_GET) {
-            int globalIndex = reader.readU32();
-            _show("Global get $globalIndex");
-        }
-        else if(opcode == Opcodes.global_SET) {
-            int globalIndex = reader.readU32();
-            _show("Global set $globalIndex");
-        }       
-        else if(opcode == Opcodes.i32_LOAD) {
-            readMemArg();
-            _show("Load 32-bit value");
-        }
-        else if(opcode == Opcodes.i32_LOAD8_s) {
-            readMemArg();
-            _show("Load 8-bit signed value");
-        }
-        else if(opcode == Opcodes.i32_LOAD8_u) {
-            readMemArg();
-            _show("Load 8-bit unsigned value");
-        }        
-        else if(opcode == Opcodes.i64_LOAD) {
-            readMemArg();
-            _show("Load 64-bit value");
-        }
-        else if(opcode == Opcodes.i32_STORE) {
-            readMemArg();
-            _show("Store 32-bit value");
-        }
-        else if(opcode == Opcodes.i32_STORE8) {
-            readMemArg();
-            _show("Store 8-bit value");
-        }       
-        else if(opcode == Opcodes.i64_STORE) {
-            readMemArg();
-            _show("Store 64-bit value");
-        }
-        else {
-            _show("Not found!!");
-            exit(1);
-        }        
     }
     
-    void readExpr() {
+    void readExpr({bool insideFunction = false}) {
         while(true) {
             int opcode = reader.readByte();            
-            processOpCode(opcode);
-            if(opcode == 0x0b) {                
+            if(opcode == 0x0b) {  
                 _show("Expression ended");
+                if(insideFunction) {
+                    cg.addReturnIfNecessary(currentFn);
+                }
+                processOpCode(opcode);
                 break;
-            }   
+            }
+            processOpCode(opcode);
         }
     }
     
@@ -534,7 +426,7 @@ class Parser {
                 _show("Function $i: $nOfType locals of type " + Utils.getValueTypeName(valType));
             }
             currentFn = i;
-            readExpr();
+            readExpr(insideFunction: true);            
         }
         if(!reader.isOffsetCorrect(originalOffset, size)) {
             _show("Something's wrong in the code section");
@@ -619,6 +511,6 @@ class Parser {
     }
     
     void _show(s) {
-        print(s);
+        //print(s);
     }
 }

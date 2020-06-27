@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:io';
 import './utils.dart';
 import './opcodes.dart';
 
@@ -22,10 +23,13 @@ class CodeGenerator {
     FunctionsHolder functionsHolder = FunctionsHolder();
     Map<int, String> functionNames = {};
     Map<int, String> functionContents = {};
+    Map<int, bool> addedReturn = {};
     int nImports = 0;
     int nImportedFunctions = 0;
     
     List<String> stack = [];
+    
+    int depth = 0;
     
     void addFunctionName(String name, {int index}) {
         int i = index ?? functionsHolder.nFunctions;
@@ -80,7 +84,6 @@ class CodeGenerator {
     
     void addCode(int fnIndex, int opcode, List parameters) {
         fnIndex += nImportedFunctions;
-        print(stack);
         switch(opcode) {
             case Opcodes.i32_CONST:
             case Opcodes.i64_CONST:            
@@ -116,25 +119,116 @@ class CodeGenerator {
                 String c1 = stack.removeLast();
                 stack.add("($c1 + $c2)");
                 break;
+            case Opcodes.i32_MUL:
+            case Opcodes.i64_MUL:
+                String c2 = stack.removeLast();
+                String c1 = stack.removeLast();
+                stack.add("($c1 * $c2)");
+                break;
+            case Opcodes.i32_DIV_u:
+            case Opcodes.i32_DIV_s:
+            case Opcodes.i64_DIV_u:
+            case Opcodes.i64_DIV_s:
+                String c2 = stack.removeLast();
+                String c1 = stack.removeLast();
+                stack.add("($c1 / $c2)");
+                break;
+            case Opcodes.i32_SHL:
+            case Opcodes.i64_SHL:
+                String c2 = stack.removeLast();
+                String c1 = stack.removeLast();
+                stack.add("($c1 << $c2)");
+                break;
+            case Opcodes.i32_AND:
+            case Opcodes.i64_AND:
+                String c2 = stack.removeLast();
+                String c1 = stack.removeLast();
+                stack.add("($c1 & $c2)");
+                break;
+            case Opcodes.i32_OR:
+            case Opcodes.i64_OR:
+                String c2 = stack.removeLast();
+                String c1 = stack.removeLast();
+                stack.add("($c1 | $c2)");
+                break;
+            case Opcodes.i32_XOR:
+            case Opcodes.i64_XOR:
+                String c2 = stack.removeLast();
+                String c1 = stack.removeLast();
+                stack.add("($c1 ^ $c2)");
+                break;
             case Opcodes.i32_LT_u:
+            case Opcodes.i32_LT_s:            
             case Opcodes.i64_LT_u:
+            case Opcodes.i64_LT_s:            
                 String c2 = stack.removeLast();
                 String c1 = stack.removeLast();
                 stack.add("($c1 < $c2)");
                 break;
+            case Opcodes.i32_LE_u:
+            case Opcodes.i32_LE_s:            
+            case Opcodes.i64_LE_u:
+            case Opcodes.i64_LE_s:            
+                String c2 = stack.removeLast();
+                String c1 = stack.removeLast();
+                stack.add("($c1 <= $c2)");
+                break;
+            case Opcodes.i32_GE_u:
+            case Opcodes.i32_GE_s:            
+            case Opcodes.i64_GE_u:
+            case Opcodes.i64_GE_s:            
+                String c2 = stack.removeLast();
+                String c1 = stack.removeLast();
+                stack.add("($c1 >= $c2)");
+                break;
+            case Opcodes.i32_GT_u:
+            case Opcodes.i32_GT_s:            
+            case Opcodes.i64_GT_u:
+            case Opcodes.i64_GT_s:            
+                String c2 = stack.removeLast();
+                String c1 = stack.removeLast();
+                stack.add("($c1 > $c2)");
+                break;
+            case Opcodes.i32_NE:
+            case Opcodes.i64_NE:
+                String c2 = stack.removeLast();
+                String c1 = stack.removeLast();
+                stack.add("($c1 != $c2)");
+                break;
+            case Opcodes.i32_EQ:
+            case Opcodes.i64_EQ:
+                String c2 = stack.removeLast();
+                String c1 = stack.removeLast();
+                stack.add("($c1 == $c2)");
+                break;
+            case Opcodes.i32_EQZ:
+            case Opcodes.i64_EQZ:
+                String c1 = stack.removeLast();
+                stack.add("($c1 == 0)");
+                break;                
             case Opcodes.ctrl_IF:
                 String cond = stack.removeLast();
                 addCodeToFunction(fnIndex, "if($cond) {");
                 break;
             case Opcodes.ctrl_ELSE:
                 addCodeToFunction(fnIndex, "} else {");
-                break;
+                break;            
             case Opcodes.ctrl_END:
                 addCodeToFunction(fnIndex, "}");
                 break;
-            case Opcodes.ctrl_RETURN:                
+            case Opcodes.ctrl_RETURN:
                 addReturnFromFunction(fnIndex);
                 break;
+            case Opcodes.parametric_SELECT:
+                String c = stack.removeLast();
+                String c2 = stack.removeLast();
+                String c1 = stack.removeLast();
+                stack.add("($c == true) ? $c1 : $c2");
+                break;
+            default:
+                print(stack);
+                print("generator not found: 0x" + Utils.get0x(opcode));
+                exit(1);
         }
     }
     
@@ -157,7 +251,14 @@ class CodeGenerator {
         if(nResults == 1) {
             rValue = stack.removeLast();
         }
+        addedReturn[fnIndex] = true;
         addCodeToFunction(fnIndex, "return $rValue;");
+    }
+    
+    void addReturnIfNecessary(fnIndex) {
+        if(addedReturn[fnIndex] == null || !addedReturn[fnIndex]) {
+            addReturnFromFunction(fnIndex);        
+        }
     }
     
     void addCodeToFunction(int fnIndex, String code) {
