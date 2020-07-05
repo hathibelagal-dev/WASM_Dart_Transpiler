@@ -25,6 +25,24 @@ class WASMReader {
     
     int readSigned(int size) {
         int result = 0;
+        int cur;
+        int count = 0;
+        int signBits = -1;
+        while(true) {
+            cur = readByte() & 0xff;
+            result |= (cur & 0x7f) << (count *7);
+            signBits <<= 7;
+            count++;
+            if(((cur & 0x80) == 0)) break;
+        }
+        if(((signBits >> 1) & result) != 0) {
+            result |= signBits;
+        }
+        return result;
+    }
+    
+    int readSignedOld(int size) {
+        int result = 0;
         int shift = 0;
         int byte = 0;
         while(true) {

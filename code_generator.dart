@@ -28,6 +28,12 @@ class CodeGenerator {
     int nImportedFunctions = 0;
     
     List<String> stack = [];
+    List<int> bStack = [];
+    
+    static const int FUNCTION = 1018;
+    static const int LOOP = 318;
+    static const int IF_BLOCK = 218;    
+    static const int BLOCK = 128;
     
     int depth = 0;
     
@@ -96,6 +102,13 @@ class CodeGenerator {
                 String value = stack.removeLast();
                 addCodeToFunction(fnIndex, "l${parameters[0]} = $value;");
                 break;
+            case Opcodes.global_GET:
+                stack.add("g${parameters[0]}");
+                break;
+            case Opcodes.global_SET:
+                String value = stack.removeLast();
+                addCodeToFunction(fnIndex, "g${parameters[0]} = $value;");
+                break;
             case Opcodes.local_TEE:
                 String value = stack.removeLast();
                 addCodeToFunction(fnIndex, "l${parameters[0]} = $value;");
@@ -138,6 +151,14 @@ class CodeGenerator {
                 String c2 = stack.removeLast();
                 String c1 = stack.removeLast();
                 stack.add("($c1 << $c2)");
+                break;
+            case Opcodes.i32_SHR_u:
+            case Opcodes.i64_SHR_u:
+            case Opcodes.i32_SHR_s:
+            case Opcodes.i64_SHR_s:            
+                String c2 = stack.removeLast();
+                String c1 = stack.removeLast();
+                stack.add("($c1 >> $c2)");
                 break;
             case Opcodes.i32_AND:
             case Opcodes.i64_AND:
@@ -207,6 +228,7 @@ class CodeGenerator {
                 stack.add("($c1 == 0)");
                 break;                
             case Opcodes.ctrl_IF:
+                bStack.add(IF_BLOCK);
                 String cond = stack.removeLast();
                 addCodeToFunction(fnIndex, "if($cond) {");
                 break;
@@ -214,10 +236,18 @@ class CodeGenerator {
                 addCodeToFunction(fnIndex, "} else {");
                 break;            
             case Opcodes.ctrl_END:
+                int bType = bStack.removeLast();
+                if(bType == BLOCK) {
+                    addCodeToFunction(fnIndex, "break;");
+                }
                 addCodeToFunction(fnIndex, "}");
                 break;
             case Opcodes.ctrl_RETURN:
                 addReturnFromFunction(fnIndex);
+                break;
+            case Opcodes.i64_EXTEND_i32_u:
+            case Opcodes.i64_EXTEND_i32_s:
+            case Opcodes.i32_WRAP_i64:                
                 break;
             case Opcodes.parametric_SELECT:
                 String c = stack.removeLast();
@@ -225,11 +255,46 @@ class CodeGenerator {
                 String c1 = stack.removeLast();
                 stack.add("($c == true) ? $c1 : $c2");
                 break;
+            case Opcodes.ctrl_BLOCK:
+                bStack.add(BLOCK);
+                addCodeToFunction(fnIndex, "branch${getBStackLength()}: while(true) {");
+                break;
+            case Opcodes.ctrl_LOOP:
+                bStack.add(LOOP);
+                addCodeToFunction(fnIndex, "branch${getBStackLength()}: while(true) {");
+                break;
+            case Opcodes.ctrl_BR_IF:
+                String cond = stack.removeLast();
+                String label = getLabel(parameters[0]);
+                addCodeToFunction(fnIndex, "if($cond) $label");
+                break;
+            case Opcodes.ctrl_BR:
+                String label = getLabel(parameters[0]);
+                addCodeToFunction(fnIndex, "$label");
+                break;
             default:
                 print(stack);
                 print("generator not found: 0x" + Utils.get0x(opcode));
                 exit(1);
         }
+    }
+    
+    String getLabel(x) {
+        String label = "";
+        if(x>0) label = "branch$x";
+        if(bStack.last == BLOCK) {
+            return "break $label;";
+        } else {
+            return "continue $label; else break;";
+        }
+    }
+    
+    void addFunctionToStack() {
+        bStack.add(FUNCTION);
+    }
+    
+    int getBStackLength() {
+        return bStack.length - 1;
     }
     
     void addFunctionCall(fnToCall, fnIndex) {

@@ -276,6 +276,8 @@ class Parser {
             case Opcodes.i64_EQZ:
             case Opcodes.i64_NE:
             case Opcodes.i64_EQ:
+            case Opcodes.i64_EXTEND_i32_u:
+            case Opcodes.i64_EXTEND_i32_s:
             
             case Opcodes.parametric_DROP:
             case Opcodes.parametric_SELECT: 
@@ -309,6 +311,7 @@ class Parser {
             case Opcodes.ctrl_BR_IF:
             case Opcodes.ctrl_BR:
                 int labelIndex = reader.readU32();
+                addCode(opcode, [labelIndex]);
                 break;
                 
             case Opcodes.local_SET:
@@ -331,12 +334,15 @@ class Parser {
                 break;
                 
             default:
-                print("Not found!");
+                print("Not found: 0x" + Utils.get0x(opcode));
                 exit(1);
         }
     }
     
     void readExpr({bool insideFunction = false}) {
+        if(insideFunction) {
+            cg.addFunctionToStack();
+        }
         while(true) {
             int opcode = reader.readByte();            
             if(opcode == 0x0b) {  
@@ -414,6 +420,7 @@ class Parser {
         for(int i=0;i<nEntries;i++) {
             int functionSize = reader.readU32();
             int nLocals = reader.readU32();
+            _show("Started function $i");
             for(int j=0;j<nLocals;j++) {
                 int nOfType = reader.readU32();
                 int valType = reader.readByte();
@@ -452,6 +459,7 @@ class Parser {
         int sectionType = reader.readByte();
         int sectionSize = reader.readU32();
         currentSection = sectionType;
+        _show("Current section: $currentSection");
         switch(sectionType) {
             case 0: readCustomSection(sectionSize);
                     break;
