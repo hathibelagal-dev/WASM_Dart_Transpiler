@@ -28,12 +28,8 @@ class CodeGenerator {
     int nImportedFunctions = 0;
     
     List<String> stack = [];
-    List<int> bStack = [];
-    
-    static const int FUNCTION = 1018;
-    static const int LOOP = 318;
-    static const int IF_BLOCK = 218;    
-    static const int BLOCK = 128;
+    List<String> bStack = [];
+    int bCount = 0;    
     
     int depth = 0;
     
@@ -228,7 +224,7 @@ class CodeGenerator {
                 stack.add("($c1 == 0)");
                 break;                
             case Opcodes.ctrl_IF:
-                bStack.add(IF_BLOCK);
+                bStack.add("IF");
                 String cond = stack.removeLast();
                 addCodeToFunction(fnIndex, "if($cond) {");
                 break;
@@ -236,8 +232,8 @@ class CodeGenerator {
                 addCodeToFunction(fnIndex, "} else {");
                 break;            
             case Opcodes.ctrl_END:
-                int bType = bStack.removeLast();
-                if(bType == BLOCK) {
+                String bType = bStack.removeLast();
+                if(bType.startsWith("BLOCK") || bType.startsWith("LOOP")) {
                     addCodeToFunction(fnIndex, "break;");
                 }
                 addCodeToFunction(fnIndex, "}");
@@ -256,12 +252,12 @@ class CodeGenerator {
                 stack.add("($c == true) ? $c1 : $c2");
                 break;
             case Opcodes.ctrl_BLOCK:
-                bStack.add(BLOCK);
-                addCodeToFunction(fnIndex, "branch${getBStackLength()}: while(true) {");
+                String bl = addBlockToStack();
+                addCodeToFunction(fnIndex, "$bl: while(true) {");
                 break;
             case Opcodes.ctrl_LOOP:
-                bStack.add(LOOP);
-                addCodeToFunction(fnIndex, "branch${getBStackLength()}: while(true) {");
+                String bl = addBlockToStack(isLoop: true);
+                addCodeToFunction(fnIndex, "$bl: while(true) {");
                 break;
             case Opcodes.ctrl_BR_IF:
                 String cond = stack.removeLast();
@@ -279,18 +275,36 @@ class CodeGenerator {
         }
     }
     
-    String getLabel(x) {
+    String getLabel(int x) {
         String label = "";
-        if(x>0) label = "branch$x";
-        if(bStack.last == BLOCK) {
-            return "break $label;";
-        } else {
-            return "continue $label; else break;";
+        int i=0;
+        while(i<x) {
+            String cur = bStack[bStack.length - i - 1];
+            if(cur.startsWith("BLOCK") || cur.startsWith("LOOP")) {
+                i++;
+            }
         }
+        label = bStack[bStack.length - i - 1];
+        if(bStack.last.startsWith("BLOCK"))
+            return "break $label;";
+        if(bStack.last.startsWith("LOOP"))
+            return "continue $label;";
+        return "ERROR";        
     }
     
     void addFunctionToStack() {
-        bStack.add(FUNCTION);
+        bStack.add("FUNCTION");
+    }
+    
+    String addBlockToStack({bool isLoop=false}) {
+        bCount++;
+        String toAdd = "";
+        if(!isLoop)
+            toAdd = "BLOCK_$bCount";
+        else
+            toAdd = "LOOP_$bCount";
+        bStack.add(toAdd);
+        return toAdd;
     }
     
     int getBStackLength() {
