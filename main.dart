@@ -16,7 +16,7 @@ import 'dart:async';
 import './parser.dart';
 
 main() async {
-    Parser p = Parser('test_files/forloops.wasm');
+    Parser p = Parser('test_files/fib32.wasm');
     await p.initialize();
     p.parse();
 }

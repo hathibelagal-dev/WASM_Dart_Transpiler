@@ -88,10 +88,11 @@ class Parser {
         );
     }
     
-    void readMemArg() {
+    List<int> readMemArg() {
         int align = reader.readU32();
         int offset = reader.readU32();
         _show("Read memory ($align, $offset)");
+        return [align, offset];
     }
     
     void readTypeSection(int size) {
@@ -330,7 +331,8 @@ class Parser {
             case Opcodes.i32_STORE:
             case Opcodes.i32_STORE8:
             case Opcodes.i64_STORE:            
-                readMemArg();
+                var mem = readMemArg();
+                addCode(opcode, [mem]);
                 break;
                 
             default:
@@ -347,9 +349,6 @@ class Parser {
             int opcode = reader.readByte();            
             if(opcode == 0x0b) {  
                 _show("Expression ended");
-                if(insideFunction) {
-                    cg.addReturnIfNecessary(currentFn);
-                }
                 processOpCode(opcode);
                 break;
             }

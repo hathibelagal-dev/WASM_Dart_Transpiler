@@ -235,6 +235,8 @@ class CodeGenerator {
                 String bType = bStack.removeLast();
                 if(bType.startsWith("BLOCK") || bType.startsWith("LOOP")) {
                     addCodeToFunction(fnIndex, "break;");
+                } else if(bType.startsWith("FUNCTION")) {
+                    addReturnFromFunction(fnIndex);
                 }
                 addCodeToFunction(fnIndex, "}");
                 break;
@@ -268,11 +270,47 @@ class CodeGenerator {
                 String label = getLabel(parameters[0]);
                 addCodeToFunction(fnIndex, "$label");
                 break;
+            case Opcodes.i32_LOAD:
+            case Opcodes.i32_LOAD8_s:
+            case Opcodes.i32_LOAD8_u:
+            case Opcodes.i32_LOAD16_s:
+            case Opcodes.i32_LOAD16_u:
+            case Opcodes.i64_LOAD:
+            case Opcodes.i64_LOAD8_s:
+            case Opcodes.i64_LOAD8_u:
+            case Opcodes.i64_LOAD16_s:
+            case Opcodes.i64_LOAD16_u:
+            case Opcodes.i64_LOAD32_s:
+            case Opcodes.i64_LOAD32_u:
+                loadFromMemory(parameters[0]);
+                break;
+            case Opcodes.i32_STORE:
+            case Opcodes.i32_STORE8:
+            case Opcodes.i32_STORE16:
+            case Opcodes.i64_STORE:
+            case Opcodes.i64_STORE8:
+            case Opcodes.i64_STORE16:
+            case Opcodes.i64_STORE32:
+                storeToMemory(fnIndex, parameters[0]);
+                break;
             default:
                 print(stack);
                 print("generator not found: 0x" + Utils.get0x(opcode));
                 exit(1);
         }
+    }
+    
+    void loadFromMemory(List<int> mem) {
+        String index = stack.removeLast();
+        String offset = "$index + ${mem[1]}";
+        stack.add("_mem[$offset]");
+    }
+    
+    void storeToMemory(int fnIndex, List<int> mem) {
+        String contents = stack.removeLast();
+        String index = stack.removeLast();
+        String offset = "$index + ${mem[1]}";
+        addCodeToFunction(fnIndex, "_mem[$offset] = $contents;");    
     }
     
     String getLabel(int x) {
@@ -326,18 +364,12 @@ class CodeGenerator {
     
     void addReturnFromFunction(fnIndex) { 
         int nResults = typesHolder.contents[functionsHolder.contents[fnIndex]].nResults;
+        if(stack.length < nResults) return;
         String rValue = "";
         if(nResults == 1) {
             rValue = stack.removeLast();
         }
-        addedReturn[fnIndex] = true;
         addCodeToFunction(fnIndex, "return $rValue;");
-    }
-    
-    void addReturnIfNecessary(fnIndex) {
-        if(addedReturn[fnIndex] == null || !addedReturn[fnIndex]) {
-            addReturnFromFunction(fnIndex);        
-        }
     }
     
     void addCodeToFunction(int fnIndex, String code) {
