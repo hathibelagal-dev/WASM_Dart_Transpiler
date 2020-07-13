@@ -28,6 +28,7 @@ class Parser {
     
     int currentSection = -1;
     int currentFn = -1;
+    int currentGlobal = -1;
     
     CodeGenerator cg = CodeGenerator();
     
@@ -193,10 +194,16 @@ class Parser {
             String name = readName();
             int desc = reader.readByte();
             int index = reader.readU32();
-            if(desc == 0x00) {
-                _show("$name is $index");
-                cg.addFunctionName(name, index: index);
+            _show("$name is $index");
+            switch(desc) {
+                case 0x00:
+                    cg.addFunctionName(name, index: index);
+                    break;
+                case 0x03:
+                    cg.addGlobalName(name, index);
+                    break;    
             }
+            
         }
         if(!reader.isOffsetCorrect(originalOffset, size)) {
             _show("Something's wrong in the export section");
@@ -341,8 +348,8 @@ class Parser {
         }
     }
     
-    void readExpr({bool insideFunction = false}) {
-        if(insideFunction) {
+    void readExpr({bool insideFunction = false, bool insideGlobal = false}) {
+        if(insideFunction || insideGlobal) {
             cg.addFunctionToStack();
         }
         while(true) {
@@ -386,6 +393,7 @@ class Parser {
     void readGlobalsSection(int size) {
         int originalOffset = reader.offset;
         int nGlobals = reader.readU32();
+        cg.globalsHolder.nGlobals = nGlobals;
         for(int i=0;i<nGlobals;i++) {
             int valType = reader.readByte();
             int mutability = reader.readByte();
@@ -394,7 +402,9 @@ class Parser {
             } else {
                 _show("Found global var");
             }
-            readExpr();
+            cg.globalsHolder.types[i] = GlobalType(mutability, valType);
+            currentGlobal = i;
+            readExpr(insideGlobal: true);
         }
         
         if(!reader.isOffsetCorrect(originalOffset, size)) {
@@ -489,8 +499,20 @@ class Parser {
     }
     
     void addCode(int opcode, List parameters) {
-        if(currentSection == 10) {
-            cg.addCode(currentFn, opcode, parameters);
+        switch(currentSection) {
+            case 10:
+                cg.addCode(currentFn, opcode, parameters);
+                break;
+            case 6:
+                cg.addGlobal(currentGlobal, opcode, parameters);
+                break;
+            case 9:
+                break;
+            case 11:
+                break;
+            default:
+                print("ERROR section: $currentSection");
+                exit(1);                    
         }
     }
     
@@ -510,6 +532,7 @@ class Parser {
             }
         }
         cg.generateFunctions();
+        cg.generateGlobals();
     }
     
     void _show(s) {

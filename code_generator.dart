@@ -21,9 +21,11 @@ class CodeGenerator {
     int fnC = 0;    // functions counter
     TypesHolder typesHolder = TypesHolder();
     FunctionsHolder functionsHolder = FunctionsHolder();
+    GlobalsHolder globalsHolder = GlobalsHolder();
     Map<int, String> functionNames = {};
     Map<int, String> functionContents = {};
     Map<int, bool> addedReturn = {};
+    
     int nImports = 0;
     int nImportedFunctions = 0;
     
@@ -36,7 +38,24 @@ class CodeGenerator {
     void addFunctionName(String name, {int index}) {
         int i = index ?? functionsHolder.nFunctions;
         functionNames[i] = name;
-    }    
+    }
+    
+    void addGlobalName(String name, int index) {
+        globalsHolder.names[index] = name;
+    }
+    
+    void generateGlobals() {
+        for(var i=0;i<globalsHolder.nGlobals;i++) {
+            String gName = globalsHolder.names[i] ?? "g$i";
+            int mutability = globalsHolder.types[i].mutability;
+            int vType = globalsHolder.types[i].vType;
+            String output = mutability == 0 ? "final " : "";
+            output += Utils.toDartType(vType) + " $gName = () { ";
+            output += globalsHolder.contents[i];
+            output += "();";
+            print(output);
+        }
+    }
     
     void generateFunctions() {
         for(var i=0;i<functionsHolder.nFunctions;i++) {
@@ -84,8 +103,18 @@ class CodeGenerator {
         functionContents[fnIndex] = output;
     }
     
-    void addCode(int fnIndex, int opcode, List parameters) {
-        fnIndex += nImportedFunctions;
+    void addGlobal(int gIndex, int opcode, List parameters) {
+        addCode(gIndex, opcode, parameters, global: true);
+    }
+    
+    String getGlobalName(int index) {
+        return globalsHolder.names[index] ?? "g$index";
+    }
+    
+    void addCode(int fnIndex, int opcode, List parameters, {bool global = false}) {
+        if(!global) {
+            fnIndex += nImportedFunctions;
+        }
         switch(opcode) {
             case Opcodes.i32_CONST:
             case Opcodes.i64_CONST:            
@@ -96,18 +125,18 @@ class CodeGenerator {
                 break;
             case Opcodes.local_SET:
                 String value = stack.removeLast();
-                addCodeToFunction(fnIndex, "l${parameters[0]} = $value;");
+                addCodeToFunction(fnIndex, "l${parameters[0]} = $value;", global);
                 break;
             case Opcodes.global_GET:
-                stack.add("g${parameters[0]}");
+                stack.add("${getGlobalName(parameters[0])}");
                 break;
             case Opcodes.global_SET:
                 String value = stack.removeLast();
-                addCodeToFunction(fnIndex, "g${parameters[0]} = $value;");
+                addCodeToFunction(fnIndex, "${getGlobalName(parameters[0])} = $value;", global);
                 break;
             case Opcodes.local_TEE:
                 String value = stack.removeLast();
-                addCodeToFunction(fnIndex, "l${parameters[0]} = $value;");
+                addCodeToFunction(fnIndex, "l${parameters[0]} = $value;", global);
                 stack.add("l${parameters[0]}");
                 break;
             case Opcodes.ctrl_CALL:
@@ -226,22 +255,22 @@ class CodeGenerator {
             case Opcodes.ctrl_IF:
                 bStack.add("IF");
                 String cond = stack.removeLast();
-                addCodeToFunction(fnIndex, "if($cond) {");
+                addCodeToFunction(fnIndex, "if($cond) {", global);
                 break;
             case Opcodes.ctrl_ELSE:
-                addCodeToFunction(fnIndex, "} else {");
+                addCodeToFunction(fnIndex, "} else {", global);
                 break;            
             case Opcodes.ctrl_END:
                 String bType = bStack.removeLast();
                 if(bType.startsWith("BLOCK") || bType.startsWith("LOOP")) {
-                    addCodeToFunction(fnIndex, "break;");
+                    addCodeToFunction(fnIndex, "break;", global);
                 } else if(bType.startsWith("FUNCTION")) {
-                    addReturnFromFunction(fnIndex);
+                    addReturnFromFunction(fnIndex, global);
                 }
-                addCodeToFunction(fnIndex, "}");
+                addCodeToFunction(fnIndex, "}", global);
                 break;
             case Opcodes.ctrl_RETURN:
-                addReturnFromFunction(fnIndex);
+                addReturnFromFunction(fnIndex, global);
                 break;
             case Opcodes.i64_EXTEND_i32_u:
             case Opcodes.i64_EXTEND_i32_s:
@@ -255,20 +284,20 @@ class CodeGenerator {
                 break;
             case Opcodes.ctrl_BLOCK:
                 String bl = addBlockToStack();
-                addCodeToFunction(fnIndex, "$bl: while(true) {");
+                addCodeToFunction(fnIndex, "$bl: while(true) {", global);
                 break;
             case Opcodes.ctrl_LOOP:
                 String bl = addBlockToStack(isLoop: true);
-                addCodeToFunction(fnIndex, "$bl: while(true) {");
+                addCodeToFunction(fnIndex, "$bl: while(true) {", global);
                 break;
             case Opcodes.ctrl_BR_IF:
                 String cond = stack.removeLast();
                 String label = getLabel(parameters[0]);
-                addCodeToFunction(fnIndex, "if($cond) $label");
+                addCodeToFunction(fnIndex, "if($cond) $label", global);
                 break;
             case Opcodes.ctrl_BR:
                 String label = getLabel(parameters[0]);
-                addCodeToFunction(fnIndex, "$label");
+                addCodeToFunction(fnIndex, "$label", global);
                 break;
             case Opcodes.i32_LOAD:
             case Opcodes.i32_LOAD8_s:
@@ -291,7 +320,7 @@ class CodeGenerator {
             case Opcodes.i64_STORE8:
             case Opcodes.i64_STORE16:
             case Opcodes.i64_STORE32:
-                storeToMemory(fnIndex, parameters[0]);
+                storeToMemory(fnIndex, parameters[0], global);
                 break;
             default:
                 print(stack);
@@ -306,11 +335,11 @@ class CodeGenerator {
         stack.add("_mem[$offset]");
     }
     
-    void storeToMemory(int fnIndex, List<int> mem) {
+    void storeToMemory(int fnIndex, List<int> mem, bool global) {
         String contents = stack.removeLast();
         String index = stack.removeLast();
         String offset = "$index + ${mem[1]}";
-        addCodeToFunction(fnIndex, "_mem[$offset] = $contents;");    
+        addCodeToFunction(fnIndex, "_mem[$offset] = $contents;", global);    
     }
     
     String getLabel(int x) {
@@ -362,20 +391,27 @@ class CodeGenerator {
         stack.add("$fnName($input)");
     }
     
-    void addReturnFromFunction(fnIndex) { 
-        int nResults = typesHolder.contents[functionsHolder.contents[fnIndex]].nResults;
+    void addReturnFromFunction(fnIndex, global) { 
+        int nResults = global ? 1 : typesHolder.contents[functionsHolder.contents[fnIndex]].nResults;
         if(stack.length < nResults) return;
         String rValue = "";
         if(nResults == 1) {
             rValue = stack.removeLast();
         }
-        addCodeToFunction(fnIndex, "return $rValue;");
+        addCodeToFunction(fnIndex, "return $rValue;", global);
     }
     
-    void addCodeToFunction(int fnIndex, String code) {
-        String output = functionContents[fnIndex] ?? "";
+    void addCodeToFunction(int fnIndex, String code, bool global) {
+        var contents = {};
+        if(global) {
+            contents = globalsHolder.contents;
+        } else {
+            contents = functionContents;
+        }
+        
+        String output = contents[fnIndex] ?? "";
         output += code + "\n";
-        functionContents[fnIndex] = output;
+        contents[fnIndex] = output;
     }
 }
 
@@ -388,6 +424,13 @@ class FunctionType {
     FunctionType({this.parameters, this.nParameters, this.results, this.nResults});
 }
 
+class GlobalType {
+    int mutability;
+    int vType;
+    
+    GlobalType(this.mutability, this.vType);
+}
+
 class TypesHolder {
     int nTypes = 0;
     Map<int, FunctionType> contents = {};
@@ -396,6 +439,13 @@ class TypesHolder {
         contents[nTypes] = ft;
         nTypes++;
     }
+}
+
+class GlobalsHolder {
+    int nGlobals = 0;
+    Map<int, String> contents = {};
+    Map<int, GlobalType> types = {};
+    Map<int, String> names = {};
 }
 
 class FunctionsHolder {
