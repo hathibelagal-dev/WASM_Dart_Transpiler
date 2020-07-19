@@ -13,6 +13,8 @@
 // limitations under the License.
 
 import 'dart:io';
+import 'dart:typed_data';
+
 import './utils.dart';
 import './opcodes.dart';
 
@@ -311,7 +313,7 @@ class CodeGenerator {
             case Opcodes.i64_LOAD16_u:
             case Opcodes.i64_LOAD32_s:
             case Opcodes.i64_LOAD32_u:
-                loadFromMemory(parameters[0]);
+                loadFromMemory(parameters[0], opcode);
                 break;
             case Opcodes.i32_STORE:
             case Opcodes.i32_STORE8:
@@ -320,7 +322,7 @@ class CodeGenerator {
             case Opcodes.i64_STORE8:
             case Opcodes.i64_STORE16:
             case Opcodes.i64_STORE32:
-                storeToMemory(fnIndex, parameters[0], global);
+                storeToMemory(fnIndex, parameters[0], opcode, global);
                 break;
             default:
                 print(stack);
@@ -329,17 +331,76 @@ class CodeGenerator {
         }
     }
     
-    void loadFromMemory(List<int> mem) {
+    void loadFromMemory(List<int> mem, int opcode) {
         String index = stack.removeLast();
         String offset = "$index + ${mem[1]}";
-        stack.add("_mem[$offset]");
+        String method = "";
+        switch(opcode) {
+            case Opcodes.i32_LOAD:
+                method = "getInt32";
+                break;
+            case Opcodes.i32_LOAD8_s:
+                method = "getInt8";
+                break;
+            case Opcodes.i32_LOAD8_u:
+                method = "getUint8";
+                break;            
+            case Opcodes.i32_LOAD16_s:
+                method = "getInt16";
+                break;            
+            case Opcodes.i32_LOAD16_u:
+                method = "getUint16";
+                break;            
+            case Opcodes.i64_LOAD:
+                method = "getInt64";
+                break;            
+            case Opcodes.i64_LOAD8_s:
+                method = "getInt8";
+                break;            
+            case Opcodes.i64_LOAD8_u:
+                method = "getUint8";
+                break;            
+            case Opcodes.i64_LOAD16_s:
+                method = "getInt16";
+                break;                     
+            case Opcodes.i64_LOAD16_u:
+                method = "getUint16";
+                break;              
+            case Opcodes.i64_LOAD32_s:
+                method = "getInt32";
+                break;            
+            case Opcodes.i64_LOAD32_u:                
+                method = "getUint32";
+                break;            
+        }
+        stack.add("memory.${method}($offset)");
     }
     
-    void storeToMemory(int fnIndex, List<int> mem, bool global) {
+    void storeToMemory(int fnIndex, List<int> mem, int opcode, bool global) {
         String contents = stack.removeLast();
         String index = stack.removeLast();
         String offset = "$index + ${mem[1]}";
-        addCodeToFunction(fnIndex, "_mem[$offset] = $contents;", global);    
+        
+        String method = "";
+        switch(opcode) {
+            case Opcodes.i32_STORE8:
+            case Opcodes.i64_STORE8:
+                method = "setInt8";            
+                break;
+            case Opcodes.i32_STORE16:
+            case Opcodes.i64_STORE16:
+                method = "setInt16";
+                break;
+            case Opcodes.i32_STORE:
+            case Opcodes.i64_STORE32:            
+                method = "setInt32";
+                break;                    
+            case Opcodes.i64_STORE:
+                method = "setInt64";
+                break;            
+        }
+        
+        addCodeToFunction(fnIndex, "memory.${method}($offset, $contents);", global);    
     }
     
     String getLabel(int x) {
@@ -413,6 +474,30 @@ class CodeGenerator {
         output += code + "\n";
         contents[fnIndex] = output;
     }
+    
+    void addData(List<DataElement> de) {
+        String output = "import 'dart:typed_data';\n";
+        output += "ByteData memory;\n";
+        
+        output += "void _initializeDATA() {\n";
+        output += "Uint8List _m = Uint8List(65535 * 2);\n";
+        output += "List<int> d = [];\n";        
+        for(DataElement e in de) {
+            int offset = e.offset;
+            String bytes = "d = [";
+            for(var b in e.bytes) {
+                bytes += "$b,";
+            }
+            if(bytes.endsWith(","))
+                bytes = bytes.substring(0, bytes.length - 1);
+            bytes += "];\n";
+            bytes += "_m.setAll($offset, d);\n";
+            output += bytes;
+        }
+        output += "memory = _m.buffer.asByteData();\n";        
+        output += "}";
+        print(output);
+    }
 }
 
 class FunctionType {
@@ -456,4 +541,10 @@ class FunctionsHolder {
         contents[nFunctions] = typeIndex;
         nFunctions++;
     }
+}
+
+class DataElement {
+    int offset;
+    Uint8List bytes;
+    DataElement(this.offset, this.bytes);
 }

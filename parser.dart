@@ -343,8 +343,7 @@ class Parser {
                 break;
                 
             default:
-                print("Not found: 0x" + Utils.get0x(opcode));
-                exit(1);
+                _error("Not found: 0x" + Utils.get0x(opcode));
         }
     }
     
@@ -444,17 +443,42 @@ class Parser {
         }
     }
     
+    int readDataExpr() {
+        int opcode = reader.readByte();
+        int offset = 0;
+        if(opcode == Opcodes.i32_CONST) {
+            offset = reader.readS32();
+        } else if(opcode == Opcodes.i64_CONST) {
+            offset = reader.readS64();
+        } else {
+            _error("Offset is not a number!");
+        }
+        opcode = reader.readByte();
+        if(opcode != Opcodes.ctrl_END) {
+            _error("Data expression is too complicated!");
+        }
+        return offset;
+    }
+    
     void readDataSection(int size) {
         int originalOffset = reader.offset;
         int nData = reader.readU32();
+        List<DataElement> de = [];
         for(int i=0;i<nData;i++) {
             int memIndex = reader.readU32();
-            readExpr();
+            if(memIndex != 0) {            
+                _error("Invalid memory index: $memIndex");
+            }
+            int offset = readDataExpr();
             int nBytes = reader.readU32();
+            Uint8List dataBytes = Uint8List(nBytes);
             for(int j=0;j<nBytes;j++) {
                 int b = reader.readByte();
+                dataBytes[j] = b;
             }
+            de.add(DataElement(offset, dataBytes));
         }
+        cg.addData(de);
         if(!reader.isOffsetCorrect(originalOffset, size)) {
             _show("Something's wrong in the data section");
         }
@@ -537,5 +561,10 @@ class Parser {
     
     void _show(s) {
         //print(s);
+    }
+    
+    void _error(s) {
+        print(s);
+        exit(1);
     }
 }
